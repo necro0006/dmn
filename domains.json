@@ -1,10 +1,10 @@
 {
     "dizipalorjinal": {
-        "base_url": "https://dizipal1529.com",
+        "base_url": "https://dizipal1530.com",
         "icon_url": "https://www.google.com/s2/favicons?domain=dizipal1530.com&sz=128"
     },
     "dizilla": {
-        "base_url": "https://dizilla40.com",
+        "base_url": "https://dizilla.to",
         "icon_url": "https://www.google.com/s2/favicons?domain=dizilla.to&sz=128"
     },
     "hdfilmizle_to": {
@@ -16,8 +16,8 @@
         "icon_url": "https://www.google.com/s2/favicons?domain=hdfilm.us&sz=128"
     },
     "filmmakinesi": {
-        "base_url": "https://filmmakinesi.net",
-        "icon_url": "https://www.google.com/s2/favicons?domain=filmmakinesi.net&sz=128"
+        "base_url": "https://filmmakinesi.to",
+        "icon_url": "https://www.google.com/s2/favicons?domain=filmmakinesi.to&sz=128"
     },
     "filmmodu": {
         "base_url": "https://www.filmmodu.ws",
@@ -28,8 +28,103 @@
         "icon_url": "https://www.google.com/s2/favicons?domain=hdfilmcehennemi.ws&sz=128"
     },
     "yabancidizi": {
-        "base_url": "https://yabancidizi.net",
-        "icon_url": "https://www.google.com/s2/favicons?domain=yabancidizi.net&sz=128"
+        "base_url": "https://yabancidizi.so",
+        "icon_url": "https://www.google.com/s2/favicons?domain=yabancidizi.so&sz=128"
+    },
+    "wfilmizle": {
+        "base_url": "https://www.wfilmizle.club",
+        "icon_url": "https://www.google.com/s2/favicons?domain=wfilmizle.club&sz=128"
+    },
+    "webteizle": {
+        "base_url": "https://webteizle.info",
+        "icon_url": "https://www.google.com/s2/favicons?domain=webteizle.info&sz=128"
+    },
+    "ugurfilm": {
+        "base_url": "https://ugurfilm3.xyz",
+        "icon_url": "https://www.google.com/s2/favicons?domain=ugurfilm3.xyz&sz=128"
+    },
+    "sinezy": {
+        "base_url": "https://sinezy.fit",
+        "icon_url": "https://www.google.com/s2/favicons?domain=sinezy.fit&sz=128"
+    },
+    "sinemacx": {
+        "base_url": "https://www.sinema.fit",
+        "icon_url": "https://www.google.com/s2/favicons?domain=sinema.fit&sz=128"
+    },
+    "sezonlukdizi": {
+        "base_url": "https://sezonlukdizi8.com",
+        "icon_url": "https://www.google.com/s2/favicons?domain=sezonlukdizi8.com&sz=128"
+    },
+    "setfilmizle": {
+        "base_url": "https://www.setfilmizle.uk",
+        "icon_url": "https://www.google.com/s2/favicons?domain=setfilmizle.uk&sz=128"
+    },
+    "selcukflix": {
+        "base_url": "https://selcukflix.net",
+        "icon_url": "https://www.google.com/s2/favicons?domain=selcukflix.net&sz=128"
+    },
+    "rectv": {
+        "base_url": "https://m.prectv60.lol",
+        "icon_url": "https://www.google.com/s2/favicons?domain=m.prectv60.lol&sz=128"
+    },
+    "kultfilmler": {
+        "base_url": "https://kultfilmler.net",
+        "icon_url": "https://www.google.com/s2/favicons?domain=kultfilmler.net&sz=128"
+    },
+    "diziyou": {
+        "base_url": "https://www.diziyou.one",
+        "icon_url": "https://www.google.com/s2/favicons?domain=diziyou.one&sz=128"
+    },
+    "dizibox": {
+        "base_url": "https://www.dizibox.live",
+        "icon_url": "https://www.google.com/s2/favicons?domain=dizibox.live&sz=128"
+    },
+    "dizimom": {
+        "base_url": "https://www.dizimom.life",
+        "icon_url": "https://www.google.com/s2/favicons?domain=dizimom.life&sz=128"
+    },
+    "fullhdfilmizlesene": {
+        "base_url": "https://www.fullhdfilmizlesene.tv",
+        "icon_url": "https://www.google.com/s2/favicons?domain=fullhdfilmizlesene.tv&sz=128"
+    },
+    "dizimag": {
+        "base_url": "https://dizimag.nl",
+        "icon_url": "https://www.google.com/s2/favicons?domain=dizimag.nl&sz=128"
+    },
+    "dizikorea": {
+        "base_url": "https://dizikorea3.com",
+        "icon_url": "https://www.google.com/s2/favicons?domain=dizikorea3.com&sz=128"
+    },
+    "filmekseni": {
+        "base_url": "https://filmekseni.cc",
+        "icon_url": "https://www.google.com/s2/favicons?domain=filmekseni.cc&sz=128"
+    },
+    "filmbip": {
+        "base_url": "https://filmbip.com",
+        "icon_url": "https://www.google.com/s2/favicons?domain=filmbip.com&sz=128"
+    },
+    "diziwatch": {
+        "base_url": "https://diziwatch.to",
+        "icon_url": "https://www.google.com/s2/favicons?domain=diziwatch.to&sz=128"
+    },
+    "cizgimax": {
+        "base_url": "https://cizgimax.online",
+        "icon_url": "https://www.google.com/s2/favicons?domain=cizgimax.online&sz=128"
+    },
+    "asyawatch": {
+        "base_url": "https://asyawatch.com",
+        "icon_url": "https://www.google.com/s2/favicons?domain=asyawatch.com&sz=128"
+    },
+    "asyafanatiklerim": {
+        "base_url": "https://asyafanatiklerim.com",
+        "icon_url": "https://www.google.com/s2/favicons?domain=asyafanatiklerim.com&sz=128"
+    },
+    "animeler": {
+        "base_url": "https://animeler.top",
+        "icon_url": "https://www.google.com/s2/favicons?domain=animeler.top&sz=128"
+    },
+    "animecix": {
+        "base_url": "https://animecix.net",
+        "icon_url": "https://www.google.com/s2/favicons?domain=animecix.net&sz=128"
     }
-
 }
