@@ -1,15 +1,24 @@
 import json
-from curl_cffi import requests
-import cloudscraper
 import re
 import sys
 import time
 from urllib.parse import urlparse
+import requests as std_requests
+
+# Defensive imports
+try:
+    from curl_cffi import requests as cffi_requests
+except ImportError:
+    cffi_requests = None
+
+try:
+    import cloudscraper
+    scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
+except ImportError:
+    cloudscraper = None
+    scraper = None
 
 DOMAINS_FILE = "domains.json"
-
-# Initialize scrapers
-scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
 def get_current_domains():
     try:
@@ -24,39 +33,70 @@ def save_domains(data):
         json.dump(data, f, indent=4)
     print(f"Updated {DOMAINS_FILE}")
 
+def get_manual_redirect(resp, original_url):
+    """Detects redirects in Location headers or Meta Refresh in body"""
+    # 1. Location Header (even on 403)
+    if "Location" in resp.headers:
+        new_url = resp.headers["Location"]
+        if not new_url.startswith("http"):
+            parsed = urlparse(original_url)
+            new_url = f"{parsed.scheme}://{parsed.netloc}{new_url}"
+        return new_url
+    
+    # 2. Meta Refresh (Status 200/403)
+    try:
+        content = resp.text.lower()
+        if 'http-equiv="refresh"' in content or "http-equiv='refresh'" in content:
+            # Pattern: content="0;url=https://newdomain.com"
+            match = re.search(r'url=([^\s"\'>]+)', content)
+            if match:
+                new_url = match.group(1).strip("'\"")
+                if not new_url.startswith("http"):
+                    parsed = urlparse(original_url)
+                    new_url = f"{parsed.scheme}://{parsed.netloc}{new_url}"
+                return new_url
+    except:
+        pass
+    return None
+
 def make_request(url, redirects=0):
-    """Robust request using cloudscraper with curl_cffi fallback"""
+    """Robust request with multiple fallbacks and universal redirect detection"""
     if redirects > 5:
         return None
         
-    try:
-        # Try cloudscraper first
-        resp = scraper.get(url, timeout=20, allow_redirects=True)
-        
-        # Manual check for 403 with Location header
-        if resp.status_code == 403 and "Location" in resp.headers:
-            new_url = resp.headers["Location"]
-            if not new_url.startswith("http"):
-                parsed = urlparse(url)
-                new_url = f"{parsed.scheme}://{parsed.netloc}{new_url}"
-            print(f"    Detected manual redirect from 403 to: {new_url}")
-            return make_request(new_url, redirects + 1)
-            
-        # If cloudscraper still gets 403/401, try curl_cffi as fallback
-        if resp.status_code in [403, 401]:
-            print(f"    Cloudscraper got {resp.status_code}, trying curl_cffi fallback...")
-            resp_cffi = requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
-            if resp_cffi.status_code == 200:
-                return resp_cffi
-            
-        return resp
-    except Exception as e:
-        print(f"    Initial request failed ({e}), trying curl_cffi fallback...")
+    methods = []
+    # Priority 1: Cloudscraper
+    if scraper:
+        methods.append(("cloudscraper", lambda u: scraper.get(u, timeout=20, allow_redirects=True)))
+    # Priority 2: curl_cffi
+    if cffi_requests:
+        methods.append(("curl_cffi", lambda u: cffi_requests.get(u, impersonate="chrome", timeout=20, allow_redirects=True)))
+    # Priority 3: standard requests
+    methods.append(("std_requests", lambda u: std_requests.get(u, timeout=20, allow_redirects=True, headers={
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })))
+    
+    for name, method in methods:
         try:
-            return requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
-        except Exception as e2:
-            print(f"    Fallback failed: {e2}")
-            return None
+            resp = method(url)
+            if not resp: continue
+            
+            # CHECK FOR REDIRECTS (on 200 or 403)
+            # Many sites use 403 + Location or Meta Refresh as challenge/landing
+            if resp.status_code in [200, 403]:
+                new_url = get_manual_redirect(resp, url)
+                if new_url and new_url.rstrip("/") != url.rstrip("/"):
+                    print(f"    Detected manual redirect ({name}) to: {new_url}")
+                    return make_request(new_url, redirects + 1)
+            
+            if resp.status_code == 200:
+                return resp
+            
+            print(f"    {name} got status: {resp.status_code}")
+        except Exception as e:
+            print(f"    {name} attempt failed: {e}")
+            
+    return None
 
 def check_domain_generic(key, current_url):
     print(f"Checking {key}: {current_url}")
