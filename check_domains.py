@@ -20,11 +20,24 @@ def save_domains(data):
         json.dump(data, f, indent=4)
     print(f"Updated {DOMAINS_FILE}")
 
-def make_request(url):
+def make_request(url, redirects=0):
     """Robust request using curl_cffi with chrome impersonation"""
+    if redirects > 5:
+        return None
+        
     try:
         # allow_redirects=True will follow 3xx redirects automatically
         resp = requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
+        
+        # Manual check for 403 with Location header
+        if resp.status_code == 403 and "Location" in resp.headers:
+            new_url = resp.headers["Location"]
+            if not new_url.startswith("http"):
+                parsed = urlparse(url)
+                new_url = f"{parsed.scheme}://{parsed.netloc}{new_url}"
+            print(f"    Detected manual redirect from 403 to: {new_url}")
+            return make_request(new_url, redirects + 1)
+            
         return resp
     except Exception as e:
         print(f"    Request failed: {e}")
@@ -40,31 +53,31 @@ def check_domain_generic(key, current_url):
     final_url = resp.url.rstrip("/")
     current_stripped = current_url.rstrip("/")
     
-    # Check status code
+    # Check for domain change regardless of status code
+    if final_url != current_stripped:
+        current_host = urlparse(current_stripped).netloc.replace("www.", "")
+        final_host = urlparse(final_url).netloc.replace("www.", "")
+        
+        if current_host != final_host:
+            # Domain changed!
+            path = urlparse(final_url).path.lower()
+            # Suspicious patterns that usually indicate block pages or auth walls
+            suspicious = ["blocked", "engel", "giris", "login", "captcha", "forbidden", "access-denied"]
+            is_suspicious = any(ps in path for ps in suspicious)
+            
+            if not is_suspicious:
+                print(f"  Domain changed to: {final_url} (Status: {resp.status_code})")
+                return final_url
+            else:
+                print(f"  Redirected to suspicious path: {path} (Ignoring domain change)")
+    
+    # Check status code for current or slightly changed path
     if resp.status_code == 200:
-        # Check if domain changed
-        if final_url != current_stripped:
-            # Parse hosts to check if it's just a path change on same domain
-            current_host = urlparse(current_url).netloc.replace("www.", "")
-            final_host = urlparse(final_url).netloc.replace("www.", "")
-            
-            if current_host == final_host:
-                print(f"  Same domain redirect to {final_url} (Ignoring)")
-                return current_url
-
-            print(f"  Redirected to: {final_url}")
-            
-            # Update to new URL
-            return final_url
-            
         print("  Current URL is OK.")
         return current_url
         
     elif resp.status_code in [403, 503, 500]:
         print(f"  Status {resp.status_code} (Possible Block/Error)")
-        # If blocked, we usually DO NOT want to update to this URL if it failed,
-        # UNLESS the initial URL resulted in a redirect to a blocked page?
-        # But if the initial URL itself returned 403, we keep it (maybe temporary).
         return current_url
         
     else:
