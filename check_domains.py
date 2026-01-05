@@ -1,8 +1,9 @@
 import json
-import requests
+from curl_cffi import requests
 import re
 import sys
 import time
+from urllib.parse import urlparse
 
 DOMAINS_FILE = "domains.json"
 
@@ -19,17 +20,24 @@ def save_domains(data):
         json.dump(data, f, indent=4)
     print(f"Updated {DOMAINS_FILE}")
 
+def make_request(url):
+    """Robust request using curl_cffi with chrome impersonation"""
+    try:
+        # verify=False sometimes helps with weird cert chains, but we can try True first or default
+        resp = requests.get(url, impersonate="chrome", timeout=15, allow_redirects=True)
+        return resp
+    except Exception as e:
+        print(f"    Request failed: {e}")
+        return None
+
 def check_dizipal(current_url):
     print(f"Checking Dizipal: {current_url}")
     
     # 1. Check current
-    try:
-        resp = requests.get(current_url, timeout=10)
-        if resp.status_code == 200:
-            print("  Current URL is OK.")
-            return current_url
-    except Exception as e:
-        print(f"  Current URL failed: {e}")
+    resp = make_request(current_url)
+    if resp and resp.status_code == 200:
+        print("  Current URL is OK.")
+        return current_url
 
     # 2. Extract number and increment
     match = re.search(r"dizipal(\d+)", current_url)
@@ -38,69 +46,80 @@ def check_dizipal(current_url):
         return current_url
 
     num = int(match.group(1))
-    base_part = current_url.split(f"dizipal{num}")[0]
-    suffix = current_url.split(f"dizipal{num}")[1] if len(current_url.split(f"dizipal{num}")) > 1 else ""
     
-    # Try next 5 numbers
-    for i in range(1, 6):
+    # Handle cases like https://dizipal123.com or https://www.dizipal123.com
+    # Best way: Split by the number, but that's risky if number appears twice.
+    # We will reconstruct carefully.
+    
+    base_part_match = re.search(r"^(.*?)dizipal\d+(.*?)$", current_url)
+    if not base_part_match:
+        return current_url
+        
+    prefix = base_part_match.group(1) # e.g. https://
+    suffix = base_part_match.group(2) # e.g. .com
+    
+    # Try next 10 numbers (increased to catch up if behind)
+    for i in range(1, 10):
         next_num = num + i
-        next_url = f"{base_part}dizipal{next_num}{suffix}"
+        next_url = f"{prefix}dizipal{next_num}{suffix}"
         print(f"  Trying: {next_url}")
-        try:
-            resp = requests.get(next_url, timeout=10)
-            if resp.status_code == 200:
-                print(f"  Found new working URL: {next_url}")
-                return next_url
-        except:
-            continue
+        
+        resp = make_request(next_url)
+        if resp and resp.status_code == 200:
+            print(f"  Found new working URL: {next_url}")
+            return next_url
             
     print("  Could not find a new working URL.")
     return current_url
 
 def check_dizilla(current_url):
     print(f"Checking Dizilla: {current_url}")
-    try:
-        resp = requests.get(current_url, timeout=10, allow_redirects=True)
-        final_url = resp.url.rstrip("/")
-        
-        if resp.status_code != 200:
-            print(f"  Status {resp.status_code}")
-            return current_url # Keep old if failing
-            
-        # Validation: content must contain "Dizilla" or "__NEXT_DATA__"
-        if "__NEXT_DATA__" in resp.text or "Dizilla" in resp.text:
-            if final_url != current_url.rstrip("/"):
-                 print(f"  Redirected to valid domain: {final_url}")
-                 return final_url
-            print("  Current URL is OK.")
-            return current_url
-        else:
-            print(f"  Validation FAILED for {final_url} (Parking/Fake site detected)")
-            return current_url # Do NOT update to fake site
-            
-    except Exception as e:
-        print(f"  Check failed: {e}")
+    resp = make_request(current_url)
+    
+    if not resp:
         return current_url
+
+    final_url = resp.url.rstrip("/")
+    
+    # Check status
+    if resp.status_code != 200:
+        print(f"  Status {resp.status_code}")
+        # If 403 despite cffi, it's really tough. But cffi usually passes.
+        return current_url
+        
+    # Validation: content must contain "Dizilla" or "__NEXT_DATA__"
+    # cffi body is in resp.text
+    if "__NEXT_DATA__" in resp.text or "Dizilla" in resp.text:
+        if final_url != current_url.rstrip("/"):
+                print(f"  Redirected to valid domain: {final_url}")
+                return final_url
+        print("  Current URL is OK.")
+        return current_url
+    else:
+        print(f"  Validation FAILED for {final_url} (Parking/Fake site detected)")
+        return current_url 
 
 def check_generic(key, current_url):
     print(f"Checking Generic ({key}): {current_url}")
-    try:
-        # User-Agent is critical for some sites (Cloudflare)
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-        resp = requests.get(current_url, headers=headers, timeout=15, allow_redirects=True)
-        final_url = resp.url.rstrip("/")
-        current_stripped = current_url.rstrip("/")
+    resp = make_request(current_url)
+    
+    if not resp:
+        return current_url
         
-        if resp.status_code == 200:
-            if final_url != current_stripped:
-                # Basic validation: ensure path didn't change to /login or something
-                if requests.utils.urlparse(final_url).path in ["", "/", "/index.php"]:
-                    print(f"  Updated to: {final_url}")
-                    return final_url
-            print("  OK.")
-            return current_url
-    except Exception as e:
-        print(f"  Error: {e}")
+    final_url = resp.url.rstrip("/")
+    current_stripped = current_url.rstrip("/")
+    
+    if resp.status_code == 200:
+        if final_url != current_stripped:
+            # Basic validation: ensure path didn't change to /login or something
+            path = urlparse(final_url).path
+            if path in ["", "/", "/index.php", "/index.html"]:
+                print(f"  Updated to: {final_url}")
+                return final_url
+        print("  OK.")
+        return current_url
+    else:
+        print(f"  Status: {resp.status_code}")
     
     return current_url
 
