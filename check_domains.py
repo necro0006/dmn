@@ -1,11 +1,15 @@
 import json
 from curl_cffi import requests
+import cloudscraper
 import re
 import sys
 import time
 from urllib.parse import urlparse
 
 DOMAINS_FILE = "domains.json"
+
+# Initialize scrapers
+scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False})
 
 def get_current_domains():
     try:
@@ -21,13 +25,13 @@ def save_domains(data):
     print(f"Updated {DOMAINS_FILE}")
 
 def make_request(url, redirects=0):
-    """Robust request using curl_cffi with chrome impersonation"""
+    """Robust request using cloudscraper with curl_cffi fallback"""
     if redirects > 5:
         return None
         
     try:
-        # allow_redirects=True will follow 3xx redirects automatically
-        resp = requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
+        # Try cloudscraper first
+        resp = scraper.get(url, timeout=20, allow_redirects=True)
         
         # Manual check for 403 with Location header
         if resp.status_code == 403 and "Location" in resp.headers:
@@ -38,10 +42,21 @@ def make_request(url, redirects=0):
             print(f"    Detected manual redirect from 403 to: {new_url}")
             return make_request(new_url, redirects + 1)
             
+        # If cloudscraper still gets 403/401, try curl_cffi as fallback
+        if resp.status_code in [403, 401]:
+            print(f"    Cloudscraper got {resp.status_code}, trying curl_cffi fallback...")
+            resp_cffi = requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
+            if resp_cffi.status_code == 200:
+                return resp_cffi
+            
         return resp
     except Exception as e:
-        print(f"    Request failed: {e}")
-        return None
+        print(f"    Initial request failed ({e}), trying curl_cffi fallback...")
+        try:
+            return requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
+        except Exception as e2:
+            print(f"    Fallback failed: {e2}")
+            return None
 
 def check_domain_generic(key, current_url):
     print(f"Checking {key}: {current_url}")
