@@ -2,8 +2,8 @@ name: Check Domains
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Run every 6 hours
-  workflow_dispatch: # Allow manual trigger
+    - cron: '0 */12 * * *' 
+  workflow_dispatch: 
 
 permissions:
   contents: write # Allow pushing changes
