@@ -23,15 +23,57 @@ def save_domains(data):
 def make_request(url):
     """Robust request using curl_cffi with chrome impersonation"""
     try:
-        # verify=False sometimes helps with weird cert chains, but we can try True first or default
-        resp = requests.get(url, impersonate="chrome", timeout=15, allow_redirects=True)
+        # allow_redirects=True will follow 3xx redirects automatically
+        resp = requests.get(url, impersonate="chrome", timeout=20, allow_redirects=True)
         return resp
     except Exception as e:
         print(f"    Request failed: {e}")
         return None
 
-def check_dizipal(current_url):
-    print(f"Checking Dizipal: {current_url}")
+def check_domain_generic(key, current_url):
+    print(f"Checking {key}: {current_url}")
+    
+    resp = make_request(current_url)
+    if not resp:
+        return current_url # Network error, keep old
+        
+    final_url = resp.url.rstrip("/")
+    current_stripped = current_url.rstrip("/")
+    
+    # Check status code
+    if resp.status_code == 200:
+        # Check if domain changed
+        if final_url != current_stripped:
+            # Parse hosts to check if it's just a path change on same domain
+            current_host = urlparse(current_url).netloc.replace("www.", "")
+            final_host = urlparse(final_url).netloc.replace("www.", "")
+            
+            if current_host == final_host:
+                print(f"  Same domain redirect to {final_url} (Ignoring)")
+                return current_url
+
+            print(f"  Redirected to: {final_url}")
+            
+            # Update to new URL
+            return final_url
+            
+        print("  Current URL is OK.")
+        return current_url
+        
+    elif resp.status_code in [403, 503, 500]:
+        print(f"  Status {resp.status_code} (Possible Block/Error)")
+        # If blocked, we usually DO NOT want to update to this URL if it failed,
+        # UNLESS the initial URL resulted in a redirect to a blocked page?
+        # But if the initial URL itself returned 403, we keep it (maybe temporary).
+        return current_url
+        
+    else:
+        print(f"  Status {resp.status_code}")
+        return current_url
+
+def check_dizipal_increment(current_url):
+    # Special logic for Dizipal numeric increments
+    print(f"Checking Dizipal Increment: {current_url}")
     
     # 1. Check current
     resp = make_request(current_url)
@@ -47,80 +89,26 @@ def check_dizipal(current_url):
 
     num = int(match.group(1))
     
-    # Handle cases like https://dizipal123.com or https://www.dizipal123.com
-    # Best way: Split by the number, but that's risky if number appears twice.
-    # We will reconstruct carefully.
-    
     base_part_match = re.search(r"^(.*?)dizipal\d+(.*?)$", current_url)
     if not base_part_match:
         return current_url
         
-    prefix = base_part_match.group(1) # e.g. https://
-    suffix = base_part_match.group(2) # e.g. .com
+    prefix = base_part_match.group(1)
+    suffix = base_part_match.group(2)
     
-    # Try next 10 numbers (increased to catch up if behind)
-    for i in range(1, 10):
+    # Try next numbers
+    for i in range(1, 15):
         next_num = num + i
         next_url = f"{prefix}dizipal{next_num}{suffix}"
         print(f"  Trying: {next_url}")
         
         resp = make_request(next_url)
+        # Accept 200 OK
         if resp and resp.status_code == 200:
             print(f"  Found new working URL: {next_url}")
             return next_url
             
     print("  Could not find a new working URL.")
-    return current_url
-
-def check_dizilla(current_url):
-    print(f"Checking Dizilla: {current_url}")
-    resp = make_request(current_url)
-    
-    if not resp:
-        return current_url
-
-    final_url = resp.url.rstrip("/")
-    
-    # Check status
-    if resp.status_code != 200:
-        print(f"  Status {resp.status_code}")
-        # If 403 despite cffi, it's really tough. But cffi usually passes.
-        return current_url
-        
-    # Validation: content must contain "Dizilla" or "__NEXT_DATA__"
-    # cffi body is in resp.text
-    if "__NEXT_DATA__" in resp.text or "Dizilla" in resp.text:
-        if final_url != current_url.rstrip("/"):
-                print(f"  Redirected to valid domain: {final_url}")
-                return final_url
-        print("  Current URL is OK.")
-        return current_url
-    else:
-        print(f"  Validation FAILED for {final_url} (Parking/Fake site detected)")
-        return current_url 
-
-def check_generic(key, current_url):
-    print(f"Checking Generic ({key}): {current_url}")
-    resp = make_request(current_url)
-    
-    if not resp:
-        return current_url
-        
-    final_url = resp.url.rstrip("/")
-    current_stripped = current_url.rstrip("/")
-    
-    if resp.status_code == 200:
-        if final_url != current_stripped:
-            # Basic validation: ensure path didn't change to /login or something
-            path = urlparse(final_url).path
-            if path in ["", "/", "/index.php", "/index.html"]:
-                print(f"  Updated to: {final_url}")
-                return final_url
-        print("  OK.")
-        return current_url
-    else:
-        print(f"  Status: {resp.status_code}")
-    
     return current_url
 
 def main():
@@ -133,18 +121,21 @@ def main():
         
         new_url = base_url
         
-        if key == "dizipal" or key == "dizipalorjinal":
-            new_url = check_dizipal(base_url)
-        elif key == "dizilla":
-            new_url = check_dizilla(base_url)
+        # dizzy/dizipal logic
+        if "dizipal" in key:
+            new_url = check_dizipal_increment(base_url)
         else:
-            new_url = check_generic(key, base_url)
+            # Generic check for everything else (Dizilla, HDfilm, etc.)
+            new_url = check_domain_generic(key, base_url)
             
         if new_url != base_url:
             data[key]["base_url"] = new_url
-            # Update icon if domain changed
-            domain = new_url.replace("https://", "").replace("http://", "").split("/")[0]
-            data[key]["icon_url"] = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
+            # Update icon
+            try:
+                domain = new_url.replace("https://", "").replace("http://", "").split("/")[0]
+                data[key]["icon_url"] = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
+            except:
+                pass
             updated = True
             
     if updated:
