@@ -68,7 +68,7 @@
         "icon_url": "https://www.google.com/s2/favicons?domain=selcukflix.net&sz=128"
     },
     "rectv": {
-        "base_url": "https://m.prectv60.lol",
+        "base_url": "https://m.prectv60.lol/admin/login",
         "icon_url": "https://www.google.com/s2/favicons?domain=m.prectv60.lol&sz=128"
     },
     "kultfilmler": {
@@ -124,8 +124,8 @@
         "icon_url": "https://www.google.com/s2/favicons?domain=asyafanatiklerim.com&sz=128"
     },
     "animeler": {
-        "base_url": "https://animeler.top",
-        "icon_url": "https://www.google.com/s2/favicons?domain=animeler.top&sz=128"
+        "base_url": "https://animeler.pw",
+        "icon_url": "https://www.google.com/s2/favicons?domain=animeler.pw&sz=128"
     },
     "animecix": {
         "base_url": "https://animecix.tv",
