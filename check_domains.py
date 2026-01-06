@@ -99,24 +99,29 @@ class DomainChecker:
                 final_url = response.url.rstrip("/")
                 original_stripped = original_url.rstrip("/")
 
-                if response.status_code == 200:
-                    if final_url != original_stripped:
-                        # Validate the redirect
-                        if not self.is_suspicious_redirect(original_stripped, final_url, response.text):
-                            logger.info(f"🔄 UPDATE {key}: {original_stripped} -> {final_url}")
-                            config["base_url"] = final_url
-                            
-                            # Auto-update Icon
+                # CRITICAL CHANGE: Check for redirect FIRST, separate from Status Code.
+                # User wants to capture new URL even if it ends up in a Cloudflare (403/503) page.
+                if final_url != original_stripped:
+                    # Validate the redirect
+                    if not self.is_suspicious_redirect(original_stripped, final_url, response.text):
+                        logger.info(f"🔄 UPDATE {key}: {original_stripped} -> {final_url} (Status: {response.status_code})")
+                        config["base_url"] = final_url
+                        
+                        # Auto-update Icon
+                        try:
                             domain = urlparse(final_url).netloc.replace("www.", "")
                             config["icon_url"] = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
-                            self.updated = True
-                        else:
-                            logger.info(f"🛑 REJECTED {key}: Suspicious redirect to {final_url}")
-                    else:
-                        logger.debug(f"✅ {key} is OK.")
+                        except:
+                            pass
+                            
+                        self.updated = True
+                        return # Stop processing, we found a new domain
 
+                # If no redirect (or rejected), then check status code for logging
+                if response.status_code == 200:
+                    logger.debug(f"✅ {key} is OK.")
                 elif response.status_code in [403, 503]:
-                    logger.warning(f"🛡️ {key} returned {response.status_code} (Cloudflare/Protection?) - Keeping old URL.")
+                    logger.warning(f"🛡️ {key} returned {response.status_code} (Cloudflare/Protection?) - No working redirect detected.")
                 else:
                     logger.warning(f"❌ {key} returned {response.status_code}")
 
