@@ -68,8 +68,8 @@
         "icon_url": "https://www.google.com/s2/favicons?domain=selcukflix.net&sz=128"
     },
     "rectv": {
-        "base_url": "https://m.prectv60.lol/admin/login",
-        "icon_url": "https://www.google.com/s2/favicons?domain=m.prectv60.lol&sz=128"
+        "base_url": "https://prectv60.lol",
+        "icon_url": "https://www.google.com/s2/favicons?domain=prectv60.lol&sz=128"
     },
     "kultfilmler": {
         "base_url": "https://kultfilmler.net",
